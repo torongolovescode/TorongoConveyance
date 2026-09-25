@@ -1,4 +1,4 @@
-import io
+ import io
 import pandas as pd
 import streamlit as st
 from reportlab.lib import colors
@@ -7,14 +7,88 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 # ---------------------------------------------------------
-# Page Setup
+# Page Setup & Custom Styling
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Conveyance Bill Generator", page_icon="📄", layout="centered"
+    page_title="Conveyance Bill Generator", page_icon="🧾", layout="centered"
 )
 
-st.title("Conveyance Bill Generator")
-st.subheader("SHAFIQ BASAK & CO.")
+# Custom Colorful & Modern CSS
+st.markdown(
+    """
+    <style>
+    /* Main Background */
+    .main {
+        background-color: #f8fafc;
+    }
+    
+    /* Header Gradient Banner */
+    .header-container {
+        background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0284c7 100%);
+        padding: 28px 20px;
+        border-radius: 16px;
+        color: white;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+    }
+    .header-container h1 {
+        color: #ffffff !important;
+        margin-bottom: 6px !important;
+        font-weight: 800;
+        font-size: 28px;
+        letter-spacing: 0.5px;
+    }
+    .header-container h3 {
+        color: #f0f9ff !important;
+        margin-top: 0px !important;
+        margin-bottom: 12px !important;
+        font-weight: 600;
+        font-size: 18px;
+    }
+    .header-container p {
+        color: #e0f2fe !important;
+        font-size: 13.5px;
+        line-height: 1.5;
+        max-width: 650px;
+        margin: 0 auto;
+        opacity: 0.95;
+    }
+
+    /* Card Box for Line Items */
+    .day-card-header {
+        background: #eff6ff;
+        border-left: 4px solid #2563eb;
+        border-radius: 8px;
+        padding: 8px 14px;
+        margin-bottom: 14px;
+        color: #1e40af;
+        font-weight: 700;
+        font-size: 15px;
+    }
+
+    /* Buttons Styling */
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Render Custom Header Banner with User Manual
+st.markdown(
+    """
+    <div class="header-container">
+        <h1>SHAFIQ BASAK & CO.</h1>
+        <h3>Conveyance bill Create</h3>
+        <p>You can create your conveyance bill without Excel! Simply enter your date, place, purpose, and rate—the site will automatically calculate amounts and generate an official PDF that you can download, print, or share.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------
 # Location to Rate Mapping (From your Excel file)
@@ -70,7 +144,9 @@ LOCATION_RATES = {
     "Jatrabari": 120,
 }
 
-PLACE_OPTIONS = list(LOCATION_RATES.keys()) + ["Custom Location..."]
+PLACE_OPTIONS = list(LOCATION_RATES.keys()) + [
+    "Other (Type custom location...)"
+]
 
 # ---------------------------------------------------------
 # Safe Session State Initialization
@@ -80,29 +156,14 @@ if "bill_rows" not in st.session_state or not isinstance(
 ):
     st.session_state["bill_rows"] = [
         {
-            "DATE": "04.08.2026",
-            "NAME OF PLACE": "Motijheel",
-            "PURPOSE": "Jamuna Bank PLC",
+            "DATE": "dd/mm/yy",
+            "NAME OF PLACE": "Write down the place",
+            "PURPOSE": "Bank/Audit/Inventory....",
             "DAYS": 1,
             "RATE": 60,
             "REMARK": "",
         },
-        {
-            "DATE": "25.08.2026",
-            "NAME OF PLACE": "Motijheel",
-            "PURPOSE": "IBBL,JBL,MTB",
-            "DAYS": 1,
-            "RATE": 60,
-            "REMARK": "",
-        },
-        {
-            "DATE": "27.08.2026",
-            "NAME OF PLACE": "Kakrail",
-            "PURPOSE": "Shahjalal Islami Bank Plc",
-            "DAYS": 1,
-            "RATE": 80,
-            "REMARK": "",
-        },
+       
     ]
 
 if "finalized" not in st.session_state:
@@ -112,13 +173,13 @@ if "finalized" not in st.session_state:
 col_hdr1, col_hdr2 = st.columns(2)
 with col_hdr1:
     employee_name = st.text_input(
-        "Prepared By (Name)",
-        value="HASAN IMAM",
+        "👤 Prepared By (Name)",
+        value="Your Name...",
         disabled=st.session_state["finalized"],
     )
 with col_hdr2:
     bill_month = st.text_input(
-        "For the month ended of",
+        "📅 For the Month Ended Of",
         value="August 2026",
         disabled=st.session_state["finalized"],
     )
@@ -129,9 +190,9 @@ st.markdown("---")
 # Step 1: Form Inputs (Add, Edit, Delete)
 # ---------------------------------------------------------
 if not st.session_state["finalized"]:
-    st.write("### 📝 Edit Line Items")
+    st.markdown("### 📝 **Edit Line Items**")
 
-    if st.button("➕ Add New Row"):
+    if st.button("➕ Add New Row", type="primary"):
         new_row = {
             "DATE": "",
             "NAME OF PLACE": "Motijheel",
@@ -143,7 +204,6 @@ if not st.session_state["finalized"]:
         st.session_state["bill_rows"].append(new_row)
         st.rerun()
 
-    # Callback function to update rate when place changes
     def update_rate_for_place(row_index):
         selected_place_key = f"place_select_{row_index}"
         rate_key = f"rate_{row_index}"
@@ -156,7 +216,14 @@ if not st.session_state["finalized"]:
     indices_to_delete = []
 
     for idx, item in enumerate(st.session_state["bill_rows"]):
-        st.markdown(f"**Item #{idx + 1}**")
+        st.markdown(
+            f"""
+            <div class="day-card-header">
+                📌 Day-{idx + 1}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         c1, c2, c3 = st.columns([2, 3, 3])
         c4, c5, c6, c7 = st.columns([1, 1, 2, 1])
@@ -167,16 +234,18 @@ if not st.session_state["finalized"]:
                 "Date", value=item["DATE"], key=f"date_{idx}", placeholder="DD.MM.YYYY"
             )
 
-        # Place Selection Dropdown
+        # Place Selection Dropdown + Custom Input Option
         with c2:
             current_place = item["NAME OF PLACE"]
-            default_index = (
-                PLACE_OPTIONS.index(current_place)
-                if current_place in PLACE_OPTIONS
-                else PLACE_OPTIONS.index("Custom Location...")
-            )
 
-            selected_place = st.selectbox(
+            if current_place in LOCATION_RATES:
+                default_index = PLACE_OPTIONS.index(current_place)
+            else:
+                default_index = PLACE_OPTIONS.index(
+                    "Other (Type custom location...)"
+                )
+
+            selected_option = st.selectbox(
                 "Select Place",
                 options=PLACE_OPTIONS,
                 index=default_index,
@@ -185,14 +254,17 @@ if not st.session_state["finalized"]:
                 args=(idx,),
             )
 
-            if selected_place == "Custom Location...":
+            if selected_option == "Other (Type custom location...)":
                 place_name = st.text_input(
-                    "Custom Place Name",
-                    value=current_place if current_place not in PLACE_OPTIONS else "",
-                    key=f"custom_place_{idx}",
+                    "Type Custom Location",
+                    value=current_place
+                    if current_place not in LOCATION_RATES
+                    else "",
+                    key=f"custom_place_text_{idx}",
+                    placeholder="e.g. Dhanmondi 32",
                 )
             else:
-                place_name = selected_place
+                place_name = selected_option
 
         # Purpose
         with c3:
@@ -204,7 +276,7 @@ if not st.session_state["finalized"]:
                 "Days", min_value=1, value=int(item["DAYS"]), key=f"days_{idx}"
             )
 
-        # Rate input (Pre-filled via callback, fully editable by user)
+        # Rate Input
         with c5:
             if f"rate_{idx}" not in st.session_state:
                 st.session_state[f"rate_{idx}"] = int(item["RATE"])
@@ -215,14 +287,13 @@ if not st.session_state["finalized"]:
                 key=f"rate_{idx}",
             )
 
-        # Calculated Amount
         amount = days * rate
 
         # Remark
         with c6:
             remark = st.text_input("Remark", value=item["REMARK"], key=f"remark_{idx}")
 
-        # Delete Row
+        # Delete Button
         with c7:
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("🗑️ Delete", key=f"del_{idx}"):
@@ -240,11 +311,9 @@ if not st.session_state["finalized"]:
             }
         )
 
-    # Process deletions safely
     if indices_to_delete:
         for index in sorted(indices_to_delete, reverse=True):
             updated_items.pop(index)
-            # Remove keys from state
             st.session_state.pop(f"rate_{index}", None)
             st.session_state.pop(f"place_select_{index}", None)
 
@@ -258,14 +327,20 @@ st.markdown("---")
 # ---------------------------------------------------------
 # Step 2: Live Overview Table
 # ---------------------------------------------------------
-st.write("### 👁️ Overview & Preview")
+st.markdown("### 👁️ **Overview & Preview**")
 
 df = pd.DataFrame(st.session_state["bill_rows"])
 
 if not df.empty:
     total_amount = df["AMOUNT"].sum()
+
+    m1, m2 = st.columns(2)
+    with m1:
+        st.metric(label="📊 Total Days Entered", value=len(df))
+    with m2:
+        st.metric(label="💰 Total Bill Amount", value=f"{total_amount} BDT")
+
     st.dataframe(df, use_container_width=True, hide_index=True)
-    st.markdown(f"#### **Total Amount:** {total_amount} BDT")
 else:
     st.warning("No line items added yet.")
     total_amount = 0
@@ -332,7 +407,7 @@ def create_pdf_bytes(company_name, month_str, prepared_by, items_data, total):
         fontName="Helvetica-Bold",
     )
 
-    # Header
+    # Document Header
     elements.append(Paragraph(company_name, title_style))
     elements.append(Paragraph("Conveyance Bill", subtitle_style))
     elements.append(
@@ -407,7 +482,7 @@ col_act1, col_act2 = st.columns([1, 1])
 
 with col_act1:
     if not st.session_state["finalized"]:
-        if st.button("✅ Lock & Finalize Bill"):
+        if st.button("✅ Lock & Finalize Bill", type="primary"):
             st.session_state["finalized"] = True
             st.rerun()
     else:
@@ -429,4 +504,5 @@ with col_act2:
             data=pdf_bytes,
             file_name=f"Conveyance_Bill_{employee_name.replace(' ', '_')}.pdf",
             mime="application/pdf",
+            type="primary",
         )
